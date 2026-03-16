@@ -1,0 +1,55 @@
+﻿version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: renting-fleet-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: RentingFleetDb
+    networks:
+      - renting-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: renting-fleet-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongodb
+    networks:
+      - renting-network
+
+  estimate-api:
+    container_name: renting-fleet-api
+    build:
+      context: .
+      dockerfile: src/GtMotive.Estimate.Microservice.Host/Dockerfile 
+    restart: unless-stopped
+    ports:
+      - "5000:8080" 
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDb__ConnectionString=mongodb://mongodb:27017
+    depends_on:
+      - mongodb
+    networks:
+      - renting-network
+
+networks:
+  renting-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    name: renting_fleet_mongo_data

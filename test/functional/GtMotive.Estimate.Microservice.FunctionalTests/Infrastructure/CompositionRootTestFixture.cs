@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using GtMotive.Estimate.Microservice.Api;
+using GtMotive.Estimate.Microservice.ApplicationCore.UseCases.CreateVehicle;
 using GtMotive.Estimate.Microservice.Infrastructure;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -12,7 +13,7 @@ using Xunit;
 
 namespace GtMotive.Estimate.Microservice.FunctionalTests.Infrastructure
 {
-    internal sealed class CompositionRootTestFixture : IDisposable, IAsyncLifetime
+    public sealed class CompositionRootTestFixture : IDisposable, IAsyncLifetime
     {
         private readonly ServiceProvider _serviceProvider;
 
@@ -89,11 +90,31 @@ namespace GtMotive.Estimate.Microservice.FunctionalTests.Infrastructure
             _serviceProvider.Dispose();
         }
 
-        private static void ConfigureServices(IServiceCollection services)
+        public async Task UsingServiceAsync<TService>(Func<TService, Task> action)
+        {
+            ArgumentNullException.ThrowIfNull(action);
+
+            using var scope = _serviceProvider.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<TService>();
+
+            if (service == null)
+            {
+                Debug.Fail($"The requested service {typeof(TService).Name} has not been registered");
+            }
+
+            await action.Invoke(service);
+        }
+
+        private void ConfigureServices(IServiceCollection services)
         {
             services.AddApiDependencies();
             services.AddLogging();
             services.AddBaseInfrastructure(true);
+            services.AddMongoPersistence(Configuration);
+
+            services.AddScoped<CreateVehicleUseCase>();
+
+            services.AddScoped<ICreateVehicleOutputPort, DummyCreateVehicleOutputPort>();
         }
     }
 }
